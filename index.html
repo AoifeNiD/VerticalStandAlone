@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="style.css" rel="stylesheet">
+    <title>Dendro StandAlone</title>
+    <style>
+        /*  .node {
+              cursor: pointer;
+          }
+          .node circle {
+              fill: #fff;
+              stroke: #ffc105;
+              stroke-width: 2px;
+          }
+          .node text {
+              font: 15px sans-serif;
+              font-weight: lighter;
+              stroke: #333;
+          }
+          .link {
+              fill: none;
+              stroke: #fff;
+              strokwidth: 1px;
+          }
+          */
+        .node circle {
+            fill: #fff;
+            stroke: steelblue;
+            stroke-width: 3px;
+        }
+
+        .node text { font: 12px sans-serif; }
+
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 2px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="Dendro">
+    <div id="dendronav">
+        <h1>Dendro Navigation</h1>
+        <button type="button">logout</button>
+
+        <script src="//d3js.org/d3.v3.min.js"></script>
+        <script>
+            var margin = {top: 45, right: 20, bottom: 20, left: 0},
+                    width = 250 - margin.right - margin.left,
+                    height = 630 - margin.top - margin.bottom;
+            var i = 0,
+                    duration = 750,
+                    root;
+            var tree = d3.layout.tree()
+                    .size([height /2 , width]);
+            var diagonal = d3.svg.diagonal()
+                    .projection(function(d) { return [d.x, d.y]; });
+            var svg = d3.select("#dendronav").append("svg")
+                    .attr("width", width + margin.right + margin.left)
+                    .attr("height", height + margin.top + margin.bottom)
+                    .append("g")
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            d3.json("hyper4js.json", function(error, dendro) {
+                if (error) throw error;
+                root = dendro;
+                root.x0 = height / 2;
+                root.y0 = 0;
+                // The collapse function
+                function collapse(d) {
+                    if (d.children) {
+                        d.all_children = d.children; //NEW
+                        d._children = d.children;
+                        d._children.forEach(collapse);
+                        d.children = null;
+                        d.hidden = true; //NEW
+                    }
+                }
+                root.all_children = root.children; //NEW
+                root.children.forEach(collapse);
+                root.children.forEach(function(d) { d.hidden = false; }); //NEW
+                root.hidden = false; //NEW
+                update(root);
+            });
+            d3.select(self.frameElement).style("height", "400px");
+            //D3 starts to draw the svg from here -- DO NOT CHANGE
+            function update(source) {
+//___________________________________________________________________
+// Computes the new tree layout.
+                // var nodes = tree.nodes(root).reverse(),
+                // links = tree.links(nodes);
+                //___________________________________________________________________
+                // NEW!!! OLD ABOVE ^^ Compute the new tree layout.
+                var nodes = tree.nodes(root).filter(function(d) { return !d.hidden; }).reverse(),
+                        links = tree.links(nodes);
+
+                // Normalize for fixed-depth.
+                nodes.forEach(function(d) { d.y = d.depth * 100; });
+                // Update the nodes…
+                var node = svg.selectAll("g.node")
+                        .data(nodes, function(d) { return d.id || (d.id = ++i); });
+                // Enter any new nodes at the parent's previous position.
+                var nodeEnter = node.enter().append("g")
+                        .attr("class", "node")
+                        .attr("transform", function(d) { return "translate(" + source.x0 + "," + source.y0 + ")"; })
+                        .on("mouseover", function(d) {
+                            var g = d3.select(this); // The node
+                            // The class is used to remove the additional text later
+                            var info = g.append('text')
+                                    .classed('info', true)
+                                    .attr('x', 20)
+                                    .attr('y', 10)
+                                    .text('');
+                        })
+                        .on("mouseout", function() {
+                            // Remove the info text on mouse out.
+                            d3.select(this).select('text.info').remove();
+                        });
+
+                //RE-ADDITION -> 1 0F 4 FOR CIRCLE
+                nodeEnter.append("circle")
+                        .attr("r", 1e-6)
+                        .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
+
+
+                ///////////////////////////////////////////////////////////////new
+                nodeEnter.append("image")
+                        .attr("xlink:href", function(d) { return d.icon; })
+                        .on("click", click)
+                        .attr("x", "-12px")
+                        .attr("y", "-12px")
+                        .attr("width", "25px")
+                        .attr("height", "25px");
+                //////////////////////////////////////////////////////////////////
+
+                //NEW ADDITION adds rectangle background to node text
+                nodeEnter.append("rect")
+                        .attr("width", "124px")
+                        .attr("height", "18px")
+                        .attr("x", function(d) { return -37;})
+                        .attr("y", function(d) { return -30;})
+                        .attr("transform", "rotate(65)")
+                        .attr("fill", "#ffffff")
+                        .attr("opacity", "0.7")
+                        .attr("rx", "5")
+                        .attr ("ry", "5");
+
+
+                nodeEnter.append("a")
+                        .attr("xlink:href", function(d) { return d.url; })
+                        .attr("target", "showurl")
+                        .append("text")
+                    //.attr("x", function(d) { return d.children || d._children ? 18 : -18; })
+                    //.attr("y", function(d) { return d.children || d._children ? 20 : -20; })
+                    //instead of above
+                        .attr("x", function(d) { return -34;})
+                        .attr("y", function(d) { return -20;})
+                        .attr("transform", "rotate(65)")
+                        .attr("dy", ".2em")
+                    // .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+                        .text(function(d) { return d.name; })
+                        .style( "font-family", "gadugi")
+                        .style( "font-weight", "bold")
+                        .style("fill-opacity", 1e-6);
+
+
+                // Transition nodes to their new position.
+                var nodeUpdate = node.transition()
+                        .duration(duration)
+                        .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+
+                //RE-ADDITION -> 2 0F 4 FOR CIRCLE
+                nodeUpdate.select("circle")
+                        .attr("r", 10)
+                        .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
+                nodeUpdate.select("text")
+                        .style("fill-opacity", 1);
+
+
+                // Transition exiting nodes to the parent's new position.
+                var nodeExit = node.exit().transition()
+                        .duration(duration)
+                        .attr("transform", function(d) { return "translate(" + source.x + "," + source.y + ")"; })
+                        .remove();
+
+                nodeExit.select("image")
+                        .style("fill-opacity", 1e-6);
+
+
+                //RE-ADDITION -> 3 OF 4 FOR CIRCLE
+                nodeExit.select("circle")
+                        .attr("r", 1e-6);
+
+
+                // Update the links…
+                var link = svg.selectAll("path.link")
+                        .data(links, function(d) { return d.target.id; })
+                        .style("stroke", function(d) { return d.target.level; });
+                // Enter any new links at the parent's previous position.
+                link.enter().insert("path", "g")
+                        .attr("class", "link")
+                        .attr("d", function(d) {
+                            var o = {x: source.x0, y: source.y0};
+                            return diagonal({source: o, target: o});
+                        });
+                // Transition links to their new position.
+                link.transition()
+                        .duration(duration)
+                        .attr("d", diagonal);
+                // Transition exiting nodes to the parent's new position.
+                link.exit().transition()
+                        .duration(duration)
+                        .attr("d", function(d) {
+                            var o = {x: source.x, y: source.y};
+                            return diagonal({source: o, target: o});
+                        })
+                        .remove();
+                // Stash the old positions for transition.
+                nodes.forEach(function(d) {
+                    d.x0 = d.x;
+                    d.y0 = d.y;
+                });
+            }
+            // Toggle children on click. DO NOT CHANGE
+            function click(d) {
+                if (d.children) {
+                    d._children = d.children;
+                    d.children = null;
+// if(d._children._children) {
+//     for(var anything in d._children._children)
+//         collapse();
+
+                    if (d._children) {                                          //NEW
+                        d._children.forEach(function(n) { n.hidden = true; });  //NEW
+                                                                                //NEW
+                        if (d.parent) {                                         //NEW
+                            d.parent.children = d.parent.all_children;          //NEW
+                            d.parent.children.forEach(function(n) {             //NEW
+                                n.hidden = false;                               //NEW
+                            });                                                 //NEW
+                        }                                                       //NEW
+                    }
+                } else {
+                    d.children = d._children;
+                    d._children = null;
+
+                    if (d.children) {                                                                       //NEW
+                        d.children.forEach(function(n) { n.hidden = false; });                              //NEW
+                                                                                                            //NEW
+                        if (d.parent) {                                                                     //NEW
+                            d.parent.children = [d];                                                       //NEW
+                            d.parent.children.filter(function(n) { return n !== d; }).forEach(function(n) { //NEW
+                                n.hidden = true;                                                            //NEW
+                            });                                                                             //NEW
+                        }                                                                                   //NEW
+                    }                                                                                       //NEW
+                }                                                                                           //NEW
+                update(d);
+            }
+
+
+        </script>
+
+
+    </div>
+</div>
+
+<!------------------------------------------------------------------------------------>
+<div id="displaycont">
+    <div id="display">
+        <iframe name="showurl"></iframe>
+    </div>
+</div>
+</body>
+</html>
